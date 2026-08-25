@@ -1,29 +1,28 @@
-version: '2'
 services:
-    # docker-ubuntu-vnc-desktop:
-    #   image: docker-ubuntu-vnc-desktop:xenial
-    #   build:
-    #       context: ./docker-ubuntu-vnc-desktop
-    #       dockerfile: Dockerfile
-    vm:
-      # depends_on:
-      #   - docker-ubuntu-vnc-desktop
-      privileged: true
-      image: vm:latest
-      build:
-        context: ./
-        dockerfile: Dockerfile
-      environment:
-        - HTTP_PASSWORD=secret
-        - VNC_PASSWORD=secret
-      cap_add:
-        - ALL
-      ports:
-        - 6080:80
-        - 5900:5900
-      volumes:
-        - ./snapshots:/app/snapshots
-        - ./avd:/root/.android/avd
-        - /lib/modules:/lib/modules:ro
+  vm:
+    privileged: true
+
+    image: vm:latest
+
+    build:
+      context: ./
+      dockerfile: Dockerfile
+
+    environment:
+      - HTTP_PASSWORD=secret
+      - VNC_PASSWORD=secret
+
+    cap_add:
+      - ALL
+
+    ports:
+      - "6080:80"
+      - "5900:5900"
+
+    volumes:
+      - ./snapshots:/app/snapshots
+      - avd:/root/.android/avd
+      - /lib/modules:/lib/modules:ro
+
 volumes:
   avd:
