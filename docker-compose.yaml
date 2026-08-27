@@ -16,6 +16,8 @@ services:
       AVD_NAME: Pixel6_API36
       AVD_DEVICE: pixel_6
       ANDROID_SYSTEM_IMAGE: system-images;android-36;google_apis_playstore;x86_64
+      AVD_CPU_CORES: ${AVD_CPU_CORES:-}
+      AVD_RAM_MB: ${AVD_RAM_MB:-}
 
     ports:
       - "127.0.0.1:6080:80"

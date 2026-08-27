@@ -23,11 +23,13 @@ This project deliberately does not spoof a device fingerprint, hide QEMU, root A
 - Docker Engine with the Compose plugin, or Docker Desktop using Linux containers
 - working KVM access at `/dev/kvm`
 - approximately 15 GB of free disk space for the image and AVD
-- preferably 8 GB or more of free RAM
+- at least 2 vCPUs and 4 GB RAM; 4 vCPUs and 8 GB RAM are recommended
 - a Google account if installing through Google Play
 - access to the phone number's SMS or voice verification
 
 The Compose configuration passes only `/dev/kvm` into the container, providing hardware acceleration without granting privileged container access. The service will not start when the host has no `/dev/kvm`; software emulation is not practical for this Android 16 configuration.
+
+The launcher sizes Android according to the host: a 2-vCPU/4-GB host receives a 2-vCPU/2-GB Android guest, while hosts with at least 4 vCPUs/7 GB receive a 4-vCPU/4-GB guest. Optional `AVD_CPU_CORES` and `AVD_RAM_MB` values in `.env` can lower these allocations, but cannot exceed the detected host resources.
 
 On Linux, verify acceleration before starting:
 

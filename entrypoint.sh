@@ -31,6 +31,47 @@ done
 
 mkdir -p "${ANDROID_AVD_HOME}"
 
+host_cpu_count="$(nproc)"
+host_memory_mb="$(awk '/^MemTotal:/ { print int($2 / 1024) }' /proc/meminfo)"
+
+if (( host_cpu_count < 2 || host_memory_mb < 3500 )); then
+    log "At least 2 host CPUs and 3.5 GB host RAM are required"
+    log "Detected ${host_cpu_count} CPUs and ${host_memory_mb} MB RAM"
+    exit 1
+fi
+
+if (( host_cpu_count >= 4 )); then
+    default_avd_cpu_cores=4
+else
+    default_avd_cpu_cores=2
+fi
+
+if (( host_memory_mb >= 7168 )); then
+    default_avd_ram_mb=4096
+else
+    # Leave roughly half of a 4 GB host available for Linux, the desktop,
+    # Docker, and the emulator's SwiftShader graphics process.
+    default_avd_ram_mb=2048
+fi
+
+avd_cpu_cores="${AVD_CPU_CORES:-${default_avd_cpu_cores}}"
+avd_ram_mb="${AVD_RAM_MB:-${default_avd_ram_mb}}"
+
+if [[ ! "${avd_cpu_cores}" =~ ^[1-9][0-9]*$ ]] || (( avd_cpu_cores > host_cpu_count )); then
+    log "AVD_CPU_CORES must be a positive integer no greater than the ${host_cpu_count} host CPUs"
+    exit 1
+fi
+
+max_avd_ram_mb=$((host_memory_mb - 1536))
+if [[ ! "${avd_ram_mb}" =~ ^[1-9][0-9]*$ ]] \
+    || (( avd_ram_mb < 1536 || avd_ram_mb > max_avd_ram_mb )); then
+    log "AVD_RAM_MB must be between 1536 and ${max_avd_ram_mb} on this host"
+    exit 1
+fi
+
+log "Host resources: ${host_cpu_count} CPUs, ${host_memory_mb} MB RAM"
+log "Android resources: ${avd_cpu_cores} CPUs, ${avd_ram_mb} MB RAM"
+
 if ! emulator -list-avds | grep -Fxq "${AVD_NAME}"; then
     log "Creating ${AVD_NAME} from ${ANDROID_SYSTEM_IMAGE}"
     echo no | avdmanager create avd \
@@ -51,8 +92,8 @@ set_avd_config() {
 }
 
 set_avd_config hw.keyboard yes
-set_avd_config hw.ramSize 4096
-set_avd_config hw.cpu.ncore 4
+set_avd_config hw.ramSize "${avd_ram_mb}"
+set_avd_config hw.cpu.ncore "${avd_cpu_cores}"
 set_avd_config disk.dataPartition.size 8G
 set_avd_config showDeviceFrame no
 
@@ -74,6 +115,7 @@ emulator \
     "${accel_args[@]}" \
     -gpu swiftshader_indirect \
     -no-boot-anim \
+    -no-metrics \
     -no-snapshot-save &
 EMULATOR_PID=$!
 
