@@ -1,13 +1,8 @@
-[CmdletBinding()]
-param(
-    [Parameter(Position = 0)]
-    [ValidatePattern('^[a-z_][a-z0-9_-]{0,31}$')]
-    [ValidateScript({ $_ -ne 'root' })]
-    [string]$DesktopUser = 'avd'
-)
-
 $ErrorActionPreference = 'Stop'
 $envFile = Join-Path $PSScriptRoot '.env'
+# This name is verified not to collide with a user or group in the pinned
+# desktop image. Its startup script cannot handle pre-existing group names.
+$desktopUser = 'avd'
 
 if (Test-Path -LiteralPath $envFile) {
     throw "Refusing to overwrite $envFile. Remove it explicitly to rotate credentials."
@@ -27,7 +22,7 @@ function New-RandomHex {
 }
 
 $lines = @(
-    "DESKTOP_USER=$DesktopUser"
+    "DESKTOP_USER=$desktopUser"
     "DESKTOP_PASSWORD=$(New-RandomHex -ByteCount 24)"
     "HTTP_PASSWORD=$(New-RandomHex -ByteCount 24)"
     # The VNC protocol accepts at most eight characters. It is also protected

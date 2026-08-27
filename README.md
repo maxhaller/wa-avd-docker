@@ -46,18 +46,16 @@ git clone https://github.com/maxhaller/wa-avd-docker.git
 cd wa-avd-docker
 ```
 
-Generate a non-root desktop username and random local credentials. The default username is `avd`; pass a different lowercase username as the first argument if desired:
+Generate the verified non-root desktop username `avd` and random local credentials:
 
 ```bash
 ./configure.sh
-# or: ./configure.sh operator
 ```
 
 On Windows PowerShell:
 
 ```powershell
 ./configure.ps1
-# or: ./configure.ps1 operator
 ```
 
 The Linux generator creates a mode-restricted `.env` file, and both generators refuse to overwrite an existing file. No default password exists, and Compose refuses to start if any required credential is missing. `.env`, private keys, APKs, Android data, logs, and local tooling files are excluded from Git; Docker also receives only the three files required to build the image.
