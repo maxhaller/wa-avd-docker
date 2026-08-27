@@ -10,6 +10,7 @@ The current configuration uses:
 - a release-signed, non-root Android system with Google Play Store
 - persistent Android user data in a versioned Docker volume
 - noVNC bound only to the host loopback interface
+- a fixed 1600x900 remote desktop so browser resizing cannot restart Android's display
 - generated credentials and a non-root desktop account
 
 ## Important limitation
@@ -98,6 +99,8 @@ ssh -N -L 6080:127.0.0.1:6080 YOUR_SSH_USER@YOUR_SERVER_IP
 
 Then open [http://localhost:6080](http://localhost:6080) locally. Only SSH should be exposed publicly, preferably restricted to your source IP and authenticated with an SSH key.
 
+The virtual desktop is deliberately fixed at 1600x900. The underlying desktop image otherwise adapts itself to the first browser window by recreating its X display; doing that while the Android emulator is attached can crash the emulator with exit status 139 and leave ADB offline. Browser zoom can be used without changing the virtual desktop resolution.
+
 ## DigitalOcean deployment
 
 Use an Ubuntu 24.04 Droplet with at least 4 vCPUs and 8 GB RAM. Confirm `kvm-ok` succeeds before installing the project. Install Docker Engine and the Compose plugin from Docker's official Ubuntu repository, then run:
@@ -112,6 +115,15 @@ docker compose logs --follow vm
 ```
 
 Apply a DigitalOcean Cloud Firewall that permits inbound TCP 22 only from your IP. Do not add rules for 6080, 5900, or ADB. Enable monitoring and backups, and remember that the persistent Android state is stored in the Docker volume `wa-avd-docker_android_api36`.
+
+After pulling a Compose-only update, recreate the container without deleting the Android volume:
+
+```bash
+docker compose stop vm
+git pull --ff-only
+docker compose up --detach --force-recreate
+docker compose logs --follow vm
+```
 
 ## Migration from the old Android 8 AVD
 

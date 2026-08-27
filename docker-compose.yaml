@@ -13,6 +13,9 @@ services:
       PASSWORD: ${DESKTOP_PASSWORD:?Run configure.sh or configure.ps1 first}
       HTTP_PASSWORD: ${HTTP_PASSWORD:?Run configure.sh or configure.ps1 first}
       VNC_PASSWORD: ${VNC_PASSWORD:?Run configure.sh or configure.ps1 first}
+      # Dynamic browser-driven resizing recreates Xvfb. That disconnects the
+      # emulator's Qt window and can terminate it with SIGSEGV (exit 139).
+      RESOLUTION: 1600x900
       AVD_NAME: Pixel6_API36
       AVD_DEVICE: pixel_6
       ANDROID_SYSTEM_IMAGE: system-images;android-36;google_apis_playstore;x86_64
