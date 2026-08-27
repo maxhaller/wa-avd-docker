@@ -1,28 +1,119 @@
 #!/bin/bash
+set -Eeuo pipefail
 
-#set -e
+export HOME="${HOME:-/root}"
+export ANDROID_HOME="${ANDROID_HOME:-/usr/local/android-sdk}"
+export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME}}"
+export ANDROID_AVD_HOME="${ANDROID_AVD_HOME:-${HOME}/.android/avd}"
+export AVD_NAME="${AVD_NAME:-Pixel6_API36}"
+export AVD_DEVICE="${AVD_DEVICE:-pixel_6}"
+export ANDROID_SYSTEM_IMAGE="${ANDROID_SYSTEM_IMAGE:-system-images;android-36;google_apis_playstore;x86_64}"
+export DISPLAY="${DISPLAY:-:1.0}"
 export QTWEBENGINE_DISABLE_SANDBOX=1
+export PATH="${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/emulator"
 
-# Create the kvm node (required --privileged)
-if [ ! -e /dev/kvm ]; then
-    mknod /dev/kvm c 10 $(grep '\<kvm\>' /proc/misc | cut -f 1 -d' ')
+log() {
+    printf '[wa-avd] %s\n' "$*"
+}
+
+cleanup() {
+    if [ -n "${EMULATOR_PID:-}" ] && kill -0 "${EMULATOR_PID}" 2>/dev/null; then
+        kill "${EMULATOR_PID}" 2>/dev/null || true
+        wait "${EMULATOR_PID}" 2>/dev/null || true
+    fi
+}
+trap cleanup EXIT INT TERM
+
+log "Waiting for the VNC desktop display ${DISPLAY}"
+until xdpyinfo -display "${DISPLAY}" >/dev/null 2>&1; do
+    sleep 1
+done
+
+mkdir -p "${ANDROID_AVD_HOME}"
+
+if ! emulator -list-avds | grep -Fxq "${AVD_NAME}"; then
+    log "Creating ${AVD_NAME} from ${ANDROID_SYSTEM_IMAGE}"
+    echo no | avdmanager create avd \
+        --force \
+        --name "${AVD_NAME}" \
+        --package "${ANDROID_SYSTEM_IMAGE}" \
+        --device "${AVD_DEVICE}"
 fi
 
-# Create Pixel AVD, if it doesn't already exist
-${ANDROID_HOME}/tools/bin/avdmanager list avd | grep 'Pixel' &> /dev/null
-if ! [ $? == 0 ]; then
-    echo "Creating Pixel AVD..."
-    echo no | ${ANDROID_HOME}/tools/bin/avdmanager create avd -n Pixel -k "system-images;android-26;google_apis;x86" -c 2000M \
-    && echo 'hw.keyboard=yes' >> /root/.android/avd/Pixel.avd/config.ini # enable hardware keyboard input
+avd_config="${ANDROID_AVD_HOME}/${AVD_NAME}.avd/config.ini"
+set_avd_config() {
+    local key="$1"
+    local value="$2"
+    local escaped_key="${key//./\\.}"
+
+    sed -i "/^${escaped_key}=.*/d" "${avd_config}"
+    printf '%s=%s\n' "${key}" "${value}" >> "${avd_config}"
+}
+
+set_avd_config hw.keyboard yes
+set_avd_config hw.ramSize 4096
+set_avd_config hw.cpu.ncore 4
+set_avd_config disk.dataPartition.size 8G
+set_avd_config showDeviceFrame no
+
+# Locks can remain after Docker Desktop or Windows terminates the container.
+find "${ANDROID_AVD_HOME}/${AVD_NAME}.avd" -name '*.lock' -type f -delete 2>/dev/null || true
+find "${ANDROID_AVD_HOME}/${AVD_NAME}.avd" -name '*.lock' -type d -exec rm -rf {} + 2>/dev/null || true
+
+if [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
+    log "KVM detected; hardware acceleration enabled"
+    accel_args=(-accel on)
 else
-    echo "Pixel AVD already exists"
+    log "KVM is unavailable; using slower software CPU emulation"
+    accel_args=(-accel off)
 fi
 
-# Start Android emulator and install WhatsApp
-# See https://github.com/fcwu/docker-ubuntu-vnc-desktop/blob/master/image/etc/supervisor/conf.d/supervisord.conf
-export ANDROID_AVD_HOME=/root/.android/avd ANDROID_SDK_HOME=/root/.android HOME=/root DISPLAY=:1.0 \
-    && xhost +local:docker \
-    && xhost +local:root \
-    && rm -f $ANDROID_AVD_HOME/Pixel.avd/hardware-qemu.ini.lock \
-    && ${ANDROID_HOME}/tools/emulator @Pixel -gpu off -no-boot-anim -snapstorage /app/snapshots \
-    && adb install /app/whatsapp.apk
+log "Starting Android emulator $(emulator -version | head -n 1)"
+emulator \
+    -avd "${AVD_NAME}" \
+    "${accel_args[@]}" \
+    -gpu swiftshader_indirect \
+    -no-boot-anim \
+    -no-snapshot-save &
+EMULATOR_PID=$!
+
+log "Waiting for ADB"
+until adb get-state >/dev/null 2>&1; do
+    if ! kill -0 "${EMULATOR_PID}" 2>/dev/null; then
+        log "Android emulator exited before ADB became available"
+        wait "${EMULATOR_PID}"
+        exit 1
+    fi
+    sleep 2
+done
+
+log "Waiting for Android to finish booting"
+until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do
+    if ! kill -0 "${EMULATOR_PID}" 2>/dev/null; then
+        log "Android emulator exited during startup"
+        wait "${EMULATOR_PID}"
+        exit 1
+    fi
+    sleep 2
+done
+
+sleep 5
+adb shell input keyevent 82 >/dev/null 2>&1 || true
+
+if adb shell pm list packages 2>/dev/null | grep -Fxq 'package:com.whatsapp'; then
+    log "WhatsApp is installed; launching it"
+    adb shell monkey \
+        -p com.whatsapp \
+        -c android.intent.category.LAUNCHER \
+        1 >/dev/null 2>&1 || true
+else
+    log "WhatsApp is not installed"
+    log "Open http://localhost:6080 and install it from Google Play"
+    adb shell monkey \
+        -p com.android.vending \
+        -c android.intent.category.LAUNCHER \
+        1 >/dev/null 2>&1 || true
+fi
+
+log "Android is ready at http://localhost:6080"
+wait "${EMULATOR_PID}"

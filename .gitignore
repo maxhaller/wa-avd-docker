@@ -1,6 +1,39 @@
-avd/
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Android SDK, emulator state, and application packages
 android-sdk-linux/
+avd/
 licenses/
+snapshots/
 sdk-tools-linux-*
 tools_*
-whatsapp.apk
+*.aab
+*.apk
+*.apks
+*.xapk
+
+# Runtime output and temporary files
+.cache/
+*.lock
+*.log
+*.pid
+*.tmp
+build/
+dist/
+tmp/
+
+# Local editor and operating-system files
+.DS_Store
+.idea/
+.vscode/
+*.code-workspace
+Desktop.ini
+Thumbs.db
+
+# Unused checkout retained by some older clones
+docker-ubuntu-vnc-desktop/

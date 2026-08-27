@@ -1,28 +1,43 @@
 services:
   vm:
-    privileged: true
-
-    image: vm:latest
+    image: wa-avd:api36
 
     build:
       context: ./
       dockerfile: Dockerfile
 
     environment:
-      - HTTP_PASSWORD=secret
-      - VNC_PASSWORD=secret
-
-    cap_add:
-      - ALL
+      # The desktop image uses USER as the HTTP username. All credentials are
+      # required so the service cannot silently start with upstream defaults.
+      USER: ${DESKTOP_USER:?Run configure.sh or configure.ps1 first}
+      PASSWORD: ${DESKTOP_PASSWORD:?Run configure.sh or configure.ps1 first}
+      HTTP_PASSWORD: ${HTTP_PASSWORD:?Run configure.sh or configure.ps1 first}
+      VNC_PASSWORD: ${VNC_PASSWORD:?Run configure.sh or configure.ps1 first}
+      AVD_NAME: Pixel6_API36
+      AVD_DEVICE: pixel_6
+      ANDROID_SYSTEM_IMAGE: system-images;android-36;google_apis_playstore;x86_64
 
     ports:
-      - "6080:80"
-      - "5900:5900"
+      - "127.0.0.1:6080:80"
+
+    devices:
+      - /dev/kvm:/dev/kvm
 
     volumes:
-      - ./snapshots:/app/snapshots
-      - avd:/root/.android/avd
-      - /lib/modules:/lib/modules:ro
+      - android_api36:/root/.android
+
+    shm_size: "2gb"
+    restart: unless-stopped
+    stop_grace_period: 2m
+
+    security_opt:
+      - no-new-privileges:true
+
+    logging:
+      driver: local
+      options:
+        max-size: "20m"
+        max-file: "3"
 
 volumes:
-  avd:
+  android_api36:
