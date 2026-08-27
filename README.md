@@ -62,11 +62,13 @@ On Windows PowerShell:
 
 The Linux generator creates a mode-restricted `.env` file, and both generators refuse to overwrite an existing file. No default password exists, and Compose refuses to start if any required credential is missing. `.env`, private keys, APKs, Android data, logs, and local tooling files are excluded from Git; Docker also receives only the three files required to build the image.
 
-To see the browser username and password locally:
+To see the browser credentials locally:
 
 ```bash
-grep -E '^(DESKTOP_USER|HTTP_PASSWORD)=' .env
+grep -E '^(DESKTOP_USER|HTTP_PASSWORD|VNC_PASSWORD)=' .env
 ```
+
+Use `DESKTOP_USER` with `HTTP_PASSWORD` for the HTTP sign-in. If noVNC presents a second password prompt, use `VNC_PASSWORD`. `DESKTOP_PASSWORD` belongs to the Linux desktop account and is not the public web credential.
 
 Never commit or share `.env`.
 
