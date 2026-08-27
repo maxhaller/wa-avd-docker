@@ -34,9 +34,10 @@ mkdir -p "${ANDROID_AVD_HOME}"
 host_cpu_count="$(nproc)"
 host_memory_mb="$(awk '/^MemTotal:/ { print int($2 / 1024) }' /proc/meminfo)"
 
-if (( host_cpu_count < 2 || host_memory_mb < 3500 )); then
-    log "At least 2 host CPUs and 3.5 GB host RAM are required"
+if (( host_cpu_count < 2 || host_memory_mb < 7168 )); then
+    log "At least 2 host CPUs and 7 GB host RAM are required"
     log "Detected ${host_cpu_count} CPUs and ${host_memory_mb} MB RAM"
+    log "Android 16, SwiftShader, and the remote desktop are not stable on a 4 GB host"
     exit 1
 fi
 
@@ -46,13 +47,7 @@ else
     default_avd_cpu_cores=2
 fi
 
-if (( host_memory_mb >= 7168 )); then
-    default_avd_ram_mb=4096
-else
-    # Leave roughly half of a 4 GB host available for Linux, the desktop,
-    # Docker, and the emulator's SwiftShader graphics process.
-    default_avd_ram_mb=2048
-fi
+default_avd_ram_mb=4096
 
 avd_cpu_cores="${AVD_CPU_CORES:-${default_avd_cpu_cores}}"
 avd_ram_mb="${AVD_RAM_MB:-${default_avd_ram_mb}}"
